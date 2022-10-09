@@ -2,6 +2,8 @@ package org.khdl
 
 internal interface Component {
     fun visitInputWires(visit: (Wire) -> Unit)
+
+    fun emitSystemVerilog(output: SystemVerilogOutput)
 }
 
 internal fun Component.drivenWire(): Wire {

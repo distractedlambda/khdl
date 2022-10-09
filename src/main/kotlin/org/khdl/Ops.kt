@@ -37,19 +37,19 @@ public fun concat(first: WireBundle, vararg rest: WireBundle): WireBundle {
 }
 
 public fun one(): Wire {
-    return Constant1.output
+    return Constant1.wire
 }
 
 public fun zero(): Wire {
-    return Constant0.output
+    return Constant0.wire
 }
 
 public fun dontCare(): Wire {
-    return ConstantX.output
+    return ConstantX.wire
 }
 
 public fun highImpedance(): Wire {
-    return ConstantZ.output
+    return ConstantZ.wire
 }
 
 public fun WireBundle.msb(): Wire {
@@ -84,7 +84,7 @@ public fun WireBundle.signExtend(newSize: Int): WireBundle {
 }
 
 public fun WireBundle.inv(): WireBundle {
-    return ParallelNot(this).output
+    return ParallelNot(this).result
 }
 
 public fun WireBundle.all(): Wire {
@@ -116,7 +116,7 @@ public operator fun WireBundle.unaryMinus(): WireBundle {
 }
 
 public fun WireBundle.register(clock: Wire): WireBundle {
-    return Register(this, clock).registeredData
+    return Register(this, clock).dataOut
 }
 
 @OptIn(ExperimentalContracts::class)

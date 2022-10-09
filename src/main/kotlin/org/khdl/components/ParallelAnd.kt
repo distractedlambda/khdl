@@ -1,6 +1,7 @@
 package org.khdl.components
 
 import org.khdl.Component
+import org.khdl.SystemVerilogOutput
 import org.khdl.Wire
 import org.khdl.WireBundle
 import org.khdl.drivenWires
@@ -15,5 +16,9 @@ internal class ParallelAnd(val lhs: WireBundle, val rhs: WireBundle) : Component
     override fun visitInputWires(visit: (Wire) -> Unit) {
         lhs.forEach(visit)
         rhs.forEach(visit)
+    }
+
+    override fun emitSystemVerilog(output: SystemVerilogOutput) {
+        output.appendLine("always_comb ${output.nameWireBundle(result)} = ${output.nameWireBundle(lhs)} & ${output.nameWireBundle(rhs)};")
     }
 }

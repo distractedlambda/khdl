@@ -1,6 +1,7 @@
 package org.khdl.components
 
 import org.khdl.Component
+import org.khdl.SystemVerilogOutput
 import org.khdl.Wire
 import org.khdl.WireBundle
 import org.khdl.drivenWires
@@ -17,6 +18,10 @@ internal class Select(val subject: WireBundle, val clauses: List<Clause>, val de
         }
 
         defaultValue.forEach(visit)
+    }
+
+    override fun emitSystemVerilog(output: SystemVerilogOutput) {
+        TODO()
     }
 
     data class Clause(val key: WireBundle, val value: WireBundle)

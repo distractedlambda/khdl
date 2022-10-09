@@ -1,6 +1,7 @@
 package org.khdl.components
 
 import org.khdl.Component
+import org.khdl.SystemVerilogOutput
 import org.khdl.Wire
 import org.khdl.WireBundle
 import org.khdl.drivenWires
@@ -11,5 +12,9 @@ internal class MultiplySigned(val lhs: WireBundle, val rhs: WireBundle) : Compon
     override fun visitInputWires(visit: (Wire) -> Unit) {
         lhs.forEach(visit)
         rhs.forEach(visit)
+    }
+
+    override fun emitSystemVerilog(output: SystemVerilogOutput) {
+        TODO()
     }
 }

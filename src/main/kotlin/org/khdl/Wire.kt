@@ -1,6 +1,6 @@
 package org.khdl
 
-public class Wire internal constructor(internal val driver: Component) : WireBundle {
+public class Wire internal constructor(internal val driver: Component?) : WireBundle {
     override val size: Int get() = 1
 
     override fun get(index: Int): Wire {
