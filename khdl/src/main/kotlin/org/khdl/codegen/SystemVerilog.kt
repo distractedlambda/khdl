@@ -1,17 +1,31 @@
 package org.khdl.codegen
 
+import org.khdl.ir.And
 import org.khdl.ir.BitVector
+import org.khdl.ir.Concat
 import org.khdl.ir.Constant
 import org.khdl.ir.FlipFlop
 import org.khdl.ir.Loop
 import org.khdl.ir.Module
 import org.khdl.ir.ModuleInput
+import org.khdl.ir.OnesComplement
+import org.khdl.ir.Or
+import org.khdl.ir.ReductiveAnd
+import org.khdl.ir.ReductiveOr
+import org.khdl.ir.ReductiveXor
+import org.khdl.ir.Repeat
+import org.khdl.ir.Slice
+import org.khdl.ir.Xor
+import java.util.IdentityHashMap
+
+public fun Module.toSystemVerilog(): String {
+    return buildString { toSystemVerilog(this) }
+}
 
 public fun Module.toSystemVerilog(output: Appendable) {
     var nextAutoId = 0
-    val names = hashMapOf<BitVector, String>()
+    val names = IdentityHashMap<BitVector, String>()
     val toVisit = ArrayDeque<BitVector>()
-    val visited = hashSetOf<BitVector>()
 
     fun getOrAssignName(node: BitVector): String {
         return names.getOrPut(node) {
@@ -23,22 +37,16 @@ public fun Module.toSystemVerilog(output: Appendable) {
                             Constant.ZERO -> '0'
                             Constant.ONE -> '1'
                             Constant.DONT_CARE -> 'X'
-                            Constant.HIGH_IMPEDENCE -> 'Z'
+                            Constant.HIGH_IMPEDANCE -> 'Z'
                             else -> error("Invalid constant")
                         })
                     }
                 }
 
-                is Loop -> {
-                    getOrAssignName(node.driver)
-                }
-
-                is FlipFlop -> {
-                    "${getOrAssignName(node.driver)}\$ff\$${getOrAssignName(node.clock)}"
-                }
-
                 else -> {
-                    val name = "${node.javaClass.simpleName}$${nextAutoId++}"
+                    toVisit.add(node)
+
+                    val name = "${node.javaClass.simpleName.lowercase()}$${nextAutoId++}"
 
                     if (node.width == 1) {
                         output.appendLine("logic $name;")
@@ -56,7 +64,6 @@ public fun Module.toSystemVerilog(output: Appendable) {
 
     inputs.mapTo(portDecls) {
         names[it] = it.name
-        visited.add(it)
         if (it.width == 1) {
             "input logic ${it.name}"
         } else {
@@ -74,7 +81,7 @@ public fun Module.toSystemVerilog(output: Appendable) {
         }
     }
 
-    output.append("module \\$name(")
+    output.append("module $name(")
 
     if (portDecls.isNotEmpty()) {
         output.appendLine()
@@ -93,27 +100,70 @@ public fun Module.toSystemVerilog(output: Appendable) {
     output.appendLine(");")
     output.appendLine()
 
+    val visited = IdentityHashMap<BitVector, Unit>()
+
     while (toVisit.isNotEmpty()) {
         val node = toVisit.removeFirst()
 
-        if (!visited.add(node)) {
+        if (visited.put(node, Unit) != null) {
             continue
         }
 
+        val name = names[node]
+
         when (node) {
-            is Constant, is Loop, is ModuleInput -> {}
+            is Constant, is ModuleInput -> {}
+
+            is Loop -> {
+                output.appendLine("always_comb $name = ${getOrAssignName(node.driver)};")
+            }
 
             is FlipFlop -> {
-                toVisit.add(node.driver)
-                toVisit.add(node.clock)
+                output.appendLine("always_ff @ (posedge ${getOrAssignName(node.clock)}) $name <= ${getOrAssignName(node.driver)};")
+            }
 
-                val driver = getOrAssignName(node.driver)
-                val clock = getOrAssignName(node.clock)
-                val name = getOrAssignName(node)
+            is Concat -> {
+                output.appendLine("always_comb $name = ${node.parts.joinToString(separator = ", ", prefix = "{", postfix = "}") { getOrAssignName(it) }};")
+            }
 
-                output.appendLine("always_ff @ (posedge $clock) $name <= $driver;")
+            is Slice -> {
+                output.appendLine("always_comb $name = ${getOrAssignName(node.subject)}[${node.msb}:${node.lsb}];")
+            }
+
+            is And -> {
+                output.appendLine("always_comb $name = ${getOrAssignName(node.lhs)} & ${getOrAssignName(node.rhs)};")
+            }
+
+            is Or -> {
+                output.appendLine("always_comb $name = ${getOrAssignName(node.lhs)} | ${getOrAssignName(node.rhs)};")
+            }
+
+            is Xor -> {
+                output.appendLine("always_comb $name = ${getOrAssignName(node.lhs)} ^ ${getOrAssignName(node.rhs)};")
+            }
+
+            is ReductiveAnd -> {
+                output.appendLine("always_comb $name = &${getOrAssignName(node.operand)};")
+            }
+
+            is ReductiveOr -> {
+                output.appendLine("always_comb $name = |${getOrAssignName(node.operand)};")
+            }
+
+            is ReductiveXor -> {
+                output.appendLine("always_comb $name = ^${getOrAssignName(node.operand)};")
+            }
+
+            is Repeat -> {
+                output.appendLine("always_comb $name = {${node.times}{${getOrAssignName(node.subject)}}};")
+            }
+
+            is OnesComplement -> {
+                output.appendLine("always_comb $name = ~${getOrAssignName(node.operand)};")
             }
         }
+
+        output.appendLine()
     }
 
     output.appendLine("endmodule;")

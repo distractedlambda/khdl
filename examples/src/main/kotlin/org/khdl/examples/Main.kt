@@ -1,5 +1,6 @@
 package org.khdl.examples
 
+import org.khdl.codegen.toSystemVerilog
 import org.khdl.ir.buildModule
 import org.khdl.ir.register
 import org.khdl.ir.xor
