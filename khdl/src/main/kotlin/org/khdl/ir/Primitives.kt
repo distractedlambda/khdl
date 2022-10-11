@@ -40,11 +40,11 @@ internal class ModuleInput(val name: String, override val width: Int) : BitVecto
 }
 
 internal class FlipFlop(val driver: BitVector, val clock: BitVector) : BitVector {
-    override val width = driver.width
-
     init {
         require(clock.width == 1)
     }
+
+    override val width = driver.width
 }
 
 internal class Concat(val parts: List<BitVector>) : BitVector {
@@ -52,37 +52,37 @@ internal class Concat(val parts: List<BitVector>) : BitVector {
 }
 
 internal class Slice(val subject: BitVector, val msb: Int, val lsb: Int) : BitVector {
-    override val width = msb - lsb + 1
-
     init {
         require(msb >= lsb)
         require(msb < subject.width)
         require(lsb >= 0)
     }
+
+    override val width = msb - lsb + 1
 }
 
 internal class And(val lhs: BitVector, val rhs: BitVector) : BitVector {
-    override val width = lhs.width
-
     init {
         require(lhs.width == rhs.width)
     }
+
+    override val width = lhs.width
 }
 
 internal class Or(val lhs: BitVector, val rhs: BitVector) : BitVector {
-    override val width = lhs.width
-
     init {
         require(lhs.width == rhs.width)
     }
+
+    override val width = lhs.width
 }
 
 internal class Xor(val lhs: BitVector, val rhs: BitVector) : BitVector {
-    override val width = lhs.width
-
     init {
         require(lhs.width == rhs.width)
     }
+
+    override val width = lhs.width
 }
 
 internal class ReductiveAnd(val operand: BitVector) : BitVector {
@@ -115,13 +115,4 @@ internal class Add(val lhs: BitVector, val rhs: BitVector) : BitVector {
     }
 
     override val width = lhs.width + 1
-}
-
-internal class Conditional(val condition: BitVector, val ifTrue: BitVector, val ifFalse: BitVector) : BitVector {
-    init {
-        require(condition.width == 1)
-        require(ifTrue.width == ifFalse.width)
-    }
-
-    override val width = ifTrue.width
 }

@@ -1,9 +1,9 @@
 package org.khdl.dsl
 
+import org.khdl.ir.Add
 import org.khdl.ir.And
 import org.khdl.ir.BitVector
 import org.khdl.ir.Concat
-import org.khdl.ir.Conditional
 import org.khdl.ir.Constant
 import org.khdl.ir.FlipFlop
 import org.khdl.ir.Loop
@@ -16,7 +16,6 @@ import org.khdl.ir.ReductiveXor
 import org.khdl.ir.Repeat
 import org.khdl.ir.Slice
 import org.khdl.ir.Xor
-
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -43,16 +42,24 @@ public fun zero(): BitVector {
     return CONSTANT_ZERO
 }
 
+public fun zeros(width: Int): BitVector {
+    return zero().repeat(width)
+}
+
 public fun one(): BitVector {
     return CONSTANT_ONE
 }
 
-public fun dontCare(): BitVector {
-    return CONSTANT_X
+public fun ones(width: Int): BitVector {
+    return one().repeat(width)
 }
 
-public fun highImpedance(): BitVector {
-    return CONSTANT_Z
+public fun dontCare(width: Int = 1): BitVector {
+    return CONSTANT_X.repeat(width)
+}
+
+public fun highImpedance(width: Int = 1): BitVector {
+    return CONSTANT_Z.repeat(width)
 }
 
 public fun BitVector.slice(msb: Int, lsb: Int): BitVector {
@@ -143,6 +150,10 @@ public infix fun BitVector.eq(other: BitVector): BitVector {
     return (this ne other).inv()
 }
 
+public operator fun BitVector.plus(other: BitVector): BitVector {
+    return Add(this, other)
+}
+
 @OptIn(ExperimentalContracts::class)
 public fun loop(width: Int, block: (BitVector) -> BitVector): BitVector {
     contract {
@@ -202,20 +213,24 @@ public class SelectScope @PublishedApi internal constructor() {
     }
 
     public fun otherwiseDontCare() {
-        default = dontCare().repeat(checkNotNull(width))
+        default = dontCare(checkNotNull(width))
     }
 
-    public fun otherwiseAllZeros() {
-        default = zero().repeat(checkNotNull(width))
+    public fun otherwiseHighImpedance() {
+        default = highImpedance(checkNotNull(width))
     }
 
-    public fun otherwiseAllOnes() {
-        default = one().repeat(checkNotNull(width))
+    public fun otherwiseZeros() {
+        default = zeros(checkNotNull(width))
+    }
+
+    public fun otherwiseOnes() {
+        default = ones(checkNotNull(width))
     }
 
     @PublishedApi internal fun build(): BitVector {
         return clauses.foldRight(checkNotNull(default)) { (condition, ifTrue), ifFalse ->
-            Conditional(condition, ifTrue, ifFalse)
+            (condition and ifTrue) or (condition.inv() and ifFalse)
         }
     }
 
@@ -229,4 +244,32 @@ public inline fun select(block: SelectScope.() -> Unit): BitVector {
     }
 
     return SelectScope().apply(block).build()
+}
+
+public fun Int.bits(width: Int): BitVector {
+    require(width >= 33 - (if (this < 0) inv() else this).countLeadingZeroBits())
+    return Constant(ByteArray(width) {
+        (this shr maxOf(it, 31) and 1).toByte()
+    })
+}
+
+public fun Long.bits(width: Int): BitVector {
+    require(width >= 65 - (if (this < 0) inv() else this).countLeadingZeroBits())
+    return Constant(ByteArray(width) {
+        (this shr maxOf(it, 63) and 1).toByte()
+    })
+}
+
+public fun UInt.bits(width: Int): BitVector {
+    require(width >= 32 - countLeadingZeroBits())
+    return Constant(ByteArray(width) {
+        if (it >= 32) 0 else (this shr it and 1u).toByte()
+    })
+}
+
+public fun ULong.bits(width: Int): BitVector {
+    require(width >= 64 - countLeadingZeroBits())
+    return Constant(ByteArray(width) {
+        if (it >= 64) 0 else (this shr it and 1u).toByte()
+    })
 }

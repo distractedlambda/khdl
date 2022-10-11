@@ -4,7 +4,6 @@ import org.khdl.ir.Add
 import org.khdl.ir.And
 import org.khdl.ir.BitVector
 import org.khdl.ir.Concat
-import org.khdl.ir.Conditional
 import org.khdl.ir.Constant
 import org.khdl.ir.FlipFlop
 import org.khdl.ir.Loop
@@ -117,7 +116,7 @@ public fun Module.toSystemVerilog(output: Appendable) {
             is Constant, is ModuleInput -> {}
 
             is Loop -> {
-                output.appendLine("always_comb $name = ${getOrAssignName(node.driver)};")
+                output.appendLine("assign $name = ${getOrAssignName(node.driver)};")
             }
 
             is FlipFlop -> {
@@ -125,51 +124,47 @@ public fun Module.toSystemVerilog(output: Appendable) {
             }
 
             is Concat -> {
-                output.appendLine("always_comb $name = ${node.parts.joinToString(separator = ", ", prefix = "{", postfix = "}") { getOrAssignName(it) }};")
+                output.appendLine("assign $name = ${node.parts.joinToString(separator = ", ", prefix = "{", postfix = "}") { getOrAssignName(it) }};")
             }
 
             is Slice -> {
-                output.appendLine("always_comb $name = ${getOrAssignName(node.subject)}[${node.msb}:${node.lsb}];")
+                output.appendLine("assign $name = ${getOrAssignName(node.subject)}[${node.msb}:${node.lsb}];")
             }
 
             is And -> {
-                output.appendLine("always_comb $name = ${getOrAssignName(node.lhs)} & ${getOrAssignName(node.rhs)};")
+                output.appendLine("assign $name = ${getOrAssignName(node.lhs)} & ${getOrAssignName(node.rhs)};")
             }
 
             is Or -> {
-                output.appendLine("always_comb $name = ${getOrAssignName(node.lhs)} | ${getOrAssignName(node.rhs)};")
+                output.appendLine("assign $name = ${getOrAssignName(node.lhs)} | ${getOrAssignName(node.rhs)};")
             }
 
             is Xor -> {
-                output.appendLine("always_comb $name = ${getOrAssignName(node.lhs)} ^ ${getOrAssignName(node.rhs)};")
+                output.appendLine("assign $name = ${getOrAssignName(node.lhs)} ^ ${getOrAssignName(node.rhs)};")
             }
 
             is ReductiveAnd -> {
-                output.appendLine("always_comb $name = &${getOrAssignName(node.operand)};")
+                output.appendLine("assign $name = &${getOrAssignName(node.operand)};")
             }
 
             is ReductiveOr -> {
-                output.appendLine("always_comb $name = |${getOrAssignName(node.operand)};")
+                output.appendLine("assign $name = |${getOrAssignName(node.operand)};")
             }
 
             is ReductiveXor -> {
-                output.appendLine("always_comb $name = ^${getOrAssignName(node.operand)};")
+                output.appendLine("assign $name = ^${getOrAssignName(node.operand)};")
             }
 
             is Repeat -> {
-                output.appendLine("always_comb $name = {${node.times}{${getOrAssignName(node.subject)}}};")
+                output.appendLine("assign $name = {${node.times}{${getOrAssignName(node.subject)}}};")
             }
 
             is OnesComplement -> {
-                output.appendLine("always_comb $name = ~${getOrAssignName(node.operand)};")
+                output.appendLine("assign $name = ~${getOrAssignName(node.operand)};")
             }
 
             is Add -> {
-                output.appendLine("always_comb $name = ${getOrAssignName(node.lhs)} + ${getOrAssignName(node.rhs)};")
-            }
-
-            is Conditional -> {
-                output.appendLine("always_comb $name = ${getOrAssignName(node.condition)} ? ${getOrAssignName(node.ifTrue)} : ${getOrAssignName(node.ifFalse)};")
+                output.appendLine("assign $name = ${getOrAssignName(node.lhs)} + ${getOrAssignName(node.rhs)};")
             }
         }
 
