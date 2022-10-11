@@ -1,5 +1,6 @@
 package org.khdl.codegen
 
+import org.khdl.ir.Add
 import org.khdl.ir.And
 import org.khdl.ir.BitVector
 import org.khdl.ir.Concat
@@ -160,6 +161,10 @@ public fun Module.toSystemVerilog(output: Appendable) {
 
             is OnesComplement -> {
                 output.appendLine("always_comb $name = ~${getOrAssignName(node.operand)};")
+            }
+
+            is Add -> {
+                output.appendLine("always_comb $name = ${getOrAssignName(node.lhs)} + ${getOrAssignName(node.rhs)};")
             }
         }
 

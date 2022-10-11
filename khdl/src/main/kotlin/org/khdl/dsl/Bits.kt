@@ -1,4 +1,20 @@
-package org.khdl.ir
+package org.khdl.dsl
+
+import org.khdl.ir.And
+import org.khdl.ir.BitVector
+import org.khdl.ir.Concat
+import org.khdl.ir.Constant
+import org.khdl.ir.FlipFlop
+import org.khdl.ir.Loop
+import org.khdl.ir.Module
+import org.khdl.ir.OnesComplement
+import org.khdl.ir.Or
+import org.khdl.ir.ReductiveAnd
+import org.khdl.ir.ReductiveOr
+import org.khdl.ir.ReductiveXor
+import org.khdl.ir.Repeat
+import org.khdl.ir.Slice
+import org.khdl.ir.Xor
 
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
@@ -39,7 +55,11 @@ public fun highImpedance(): BitVector {
 }
 
 public fun BitVector.slice(msb: Int, lsb: Int): BitVector {
-    return Slice(this, msb, lsb)
+    return if (msb == width - 1 && lsb == 0) {
+        this
+    } else {
+        Slice(this, msb, lsb)
+    }
 }
 
 public operator fun BitVector.get(index: Int): BitVector {
@@ -47,7 +67,11 @@ public operator fun BitVector.get(index: Int): BitVector {
 }
 
 public fun BitVector.repeat(times: Int): BitVector {
-    return Repeat(this, times)
+    return if (times == 1) {
+        this
+    } else {
+        return Repeat(this, times)
+    }
 }
 
 public fun BitVector.msb(): BitVector {
@@ -63,11 +87,19 @@ public fun BitVector.truncate(newWidth: Int): BitVector {
 }
 
 public fun BitVector.zeroExtend(newWidth: Int): BitVector {
-    return concat(zero().repeat(newWidth - width), this)
+    return if (newWidth == width) {
+        this
+    } else {
+        concat(zero().repeat(newWidth - width), this)
+    }
 }
 
 public fun BitVector.signExtend(newWidth: Int): BitVector {
-    return concat(msb().repeat(newWidth - width), this)
+    return if (newWidth == width) {
+        this
+    } else {
+        concat(msb().repeat(newWidth - width), this)
+    }
 }
 
 public fun BitVector.inv(): BitVector {
@@ -100,6 +132,14 @@ public infix fun BitVector.xor(rhs: BitVector): BitVector {
 
 public fun BitVector.register(clock: BitVector): BitVector {
     return FlipFlop(this, clock)
+}
+
+public infix fun BitVector.ne(other: BitVector): BitVector {
+    return (this xor other).all()
+}
+
+public infix fun BitVector.eq(other: BitVector): BitVector {
+    return (this ne other).inv()
 }
 
 @OptIn(ExperimentalContracts::class)

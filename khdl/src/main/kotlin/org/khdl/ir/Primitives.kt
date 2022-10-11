@@ -108,3 +108,11 @@ internal class Repeat(val subject: BitVector, val times: Int) : BitVector {
 internal class OnesComplement(val operand: BitVector) : BitVector {
     override val width = operand.width
 }
+
+internal class Add(val lhs: BitVector, val rhs: BitVector) : BitVector {
+    init {
+        require(lhs.width == rhs.width)
+    }
+
+    override val width = lhs.width + 1
+}
