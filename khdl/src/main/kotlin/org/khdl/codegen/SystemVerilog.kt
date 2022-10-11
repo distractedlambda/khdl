@@ -4,6 +4,7 @@ import org.khdl.ir.Add
 import org.khdl.ir.And
 import org.khdl.ir.BitVector
 import org.khdl.ir.Concat
+import org.khdl.ir.Conditional
 import org.khdl.ir.Constant
 import org.khdl.ir.FlipFlop
 import org.khdl.ir.Loop
@@ -165,6 +166,10 @@ public fun Module.toSystemVerilog(output: Appendable) {
 
             is Add -> {
                 output.appendLine("always_comb $name = ${getOrAssignName(node.lhs)} + ${getOrAssignName(node.rhs)};")
+            }
+
+            is Conditional -> {
+                output.appendLine("always_comb $name = ${getOrAssignName(node.condition)} ? ${getOrAssignName(node.ifTrue)} : ${getOrAssignName(node.ifFalse)};")
             }
         }
 

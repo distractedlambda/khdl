@@ -3,6 +3,7 @@ package org.khdl.dsl
 import org.khdl.ir.And
 import org.khdl.ir.BitVector
 import org.khdl.ir.Concat
+import org.khdl.ir.Conditional
 import org.khdl.ir.Constant
 import org.khdl.ir.FlipFlop
 import org.khdl.ir.Loop
@@ -153,4 +154,79 @@ public fun loop(width: Int, block: (BitVector) -> BitVector): BitVector {
             loop.drive(it)
         }
     }
+}
+
+public class SelectScope @PublishedApi internal constructor() {
+    private var width: Int? = null
+    private val clauses = mutableListOf<Clause>()
+    private var default: BitVector? = null
+
+    public fun where(condition: BitVector, result: BitVector) {
+        require(condition.width == 1)
+
+        if (width == null) {
+            width = result.width
+        } else {
+            require(result.width == width)
+        }
+
+        clauses.add(Clause(condition, result))
+    }
+
+    @OptIn(ExperimentalContracts::class)
+    public inline fun where(condition: BitVector, block: () -> BitVector) {
+        contract {
+            callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+        }
+
+        where(condition, block())
+    }
+
+    public fun otherwise(result: BitVector) {
+        if (width == null) {
+            width = result.width
+        } else {
+            require(result.width == width)
+        }
+
+        default = result
+    }
+
+    @OptIn(ExperimentalContracts::class)
+    public inline fun otherwise(block: () -> BitVector) {
+        contract {
+            callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+        }
+
+        otherwise(block())
+    }
+
+    public fun otherwiseDontCare() {
+        default = dontCare().repeat(checkNotNull(width))
+    }
+
+    public fun otherwiseAllZeros() {
+        default = zero().repeat(checkNotNull(width))
+    }
+
+    public fun otherwiseAllOnes() {
+        default = one().repeat(checkNotNull(width))
+    }
+
+    @PublishedApi internal fun build(): BitVector {
+        return clauses.foldRight(checkNotNull(default)) { (condition, ifTrue), ifFalse ->
+            Conditional(condition, ifTrue, ifFalse)
+        }
+    }
+
+    private data class Clause(val condition: BitVector, val result: BitVector)
+}
+
+@OptIn(ExperimentalContracts::class)
+public inline fun select(block: SelectScope.() -> Unit): BitVector {
+    contract {
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
+
+    return SelectScope().apply(block).build()
 }

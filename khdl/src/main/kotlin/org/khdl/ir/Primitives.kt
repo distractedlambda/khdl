@@ -116,3 +116,12 @@ internal class Add(val lhs: BitVector, val rhs: BitVector) : BitVector {
 
     override val width = lhs.width + 1
 }
+
+internal class Conditional(val condition: BitVector, val ifTrue: BitVector, val ifFalse: BitVector) : BitVector {
+    init {
+        require(condition.width == 1)
+        require(ifTrue.width == ifFalse.width)
+    }
+
+    override val width = ifTrue.width
+}
