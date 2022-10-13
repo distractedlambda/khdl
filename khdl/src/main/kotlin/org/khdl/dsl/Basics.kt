@@ -5,8 +5,8 @@ import org.khdl.ir.And
 import org.khdl.ir.BitVector
 import org.khdl.ir.Concat
 import org.khdl.ir.Constant
-import org.khdl.ir.FlipFlop
-import org.khdl.ir.Loop
+import org.khdl.ir.Register
+import org.khdl.ir.Wire
 import org.khdl.ir.Module
 import org.khdl.ir.OnesComplement
 import org.khdl.ir.Or
@@ -139,7 +139,15 @@ public infix fun BitVector.xor(rhs: BitVector): BitVector {
 }
 
 public fun BitVector.register(clock: BitVector): BitVector {
-    return FlipFlop(this, clock)
+    return Register(clock, width).apply { connectInput(this) }
+}
+
+public fun register(clock: BitVector, width: Int): Register {
+    return Register(clock, width)
+}
+
+public fun wire(width: Int): Wire {
+    return Wire(width)
 }
 
 public infix fun BitVector.ne(other: BitVector): BitVector {
@@ -152,19 +160,6 @@ public infix fun BitVector.eq(other: BitVector): BitVector {
 
 public operator fun BitVector.plus(other: BitVector): BitVector {
     return Add(this, other)
-}
-
-@OptIn(ExperimentalContracts::class)
-public fun loop(width: Int, block: (BitVector) -> BitVector): BitVector {
-    contract {
-        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
-    }
-
-    return Loop(width).let { loop ->
-        block(loop).also {
-            loop.drive(it)
-        }
-    }
 }
 
 public class SelectScope @PublishedApi internal constructor() {

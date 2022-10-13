@@ -5,8 +5,8 @@ import org.khdl.ir.And
 import org.khdl.ir.BitVector
 import org.khdl.ir.Concat
 import org.khdl.ir.Constant
-import org.khdl.ir.FlipFlop
-import org.khdl.ir.Loop
+import org.khdl.ir.Register
+import org.khdl.ir.Wire
 import org.khdl.ir.Module
 import org.khdl.ir.ModuleInput
 import org.khdl.ir.OnesComplement
@@ -115,12 +115,12 @@ public fun Module.toSystemVerilog(output: Appendable) {
         when (node) {
             is Constant, is ModuleInput -> {}
 
-            is Loop -> {
+            is Wire -> {
                 output.appendLine("assign $name = ${getOrAssignName(node.driver)};")
             }
 
-            is FlipFlop -> {
-                output.appendLine("always_ff @ (posedge ${getOrAssignName(node.clock)}) $name <= ${getOrAssignName(node.driver)};")
+            is Register -> {
+                output.appendLine("always_ff @ (posedge ${getOrAssignName(node.clock)}) $name <= ${getOrAssignName(node.input)};")
             }
 
             is Concat -> {

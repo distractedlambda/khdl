@@ -23,10 +23,14 @@ internal class Constant(val value: ByteArray) : BitVector {
     }
 }
 
-internal class Loop(override val width: Int) : BitVector {
-    lateinit var driver: BitVector
+public class Wire internal constructor(override val width: Int) : BitVector {
+    init {
+        require(width > 0)
+    }
 
-    fun drive(driver: BitVector) {
+    internal lateinit var driver: BitVector
+
+    public fun connectDriver(driver: BitVector) {
         require(driver.width == width)
         check(!this::driver.isInitialized)
         this.driver = driver
@@ -39,12 +43,19 @@ internal class ModuleInput(val name: String, override val width: Int) : BitVecto
     }
 }
 
-internal class FlipFlop(val driver: BitVector, val clock: BitVector) : BitVector {
+public class Register internal constructor(public val clock: BitVector, override val width: Int) : BitVector {
     init {
         require(clock.width == 1)
+        require(width > 0)
     }
 
-    override val width = driver.width
+    internal lateinit var input: BitVector
+
+    public fun connectInput(input: BitVector) {
+        require(input.width == width)
+        check(!this::input.isInitialized)
+        this.input = input
+    }
 }
 
 internal class Concat(val parts: List<BitVector>) : BitVector {
