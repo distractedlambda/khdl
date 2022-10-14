@@ -1,21 +1,6 @@
 package org.khdl.dsl
 
-import org.khdl.ir.Add
-import org.khdl.ir.And
-import org.khdl.ir.BitVector
-import org.khdl.ir.Concat
-import org.khdl.ir.Constant
-import org.khdl.ir.Register
-import org.khdl.ir.Wire
-import org.khdl.ir.Module
-import org.khdl.ir.OnesComplement
-import org.khdl.ir.Or
-import org.khdl.ir.ReductiveAnd
-import org.khdl.ir.ReductiveOr
-import org.khdl.ir.ReductiveXor
-import org.khdl.ir.Repeat
-import org.khdl.ir.Slice
-import org.khdl.ir.Xor
+import org.khdl.dsl.Register
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -29,72 +14,19 @@ public inline fun buildModule(name: String, block: Module.Builder.() -> Unit): M
     return Module.Builder(name).apply(block).build()
 }
 
-public fun concat(first: BitVector, second: BitVector, vararg rest: BitVector): BitVector {
-    return Concat(listOf(first, second, *rest))
-}
-
-private val CONSTANT_ZERO = Constant(byteArrayOf(Constant.ZERO))
-private val CONSTANT_ONE = Constant(byteArrayOf(Constant.ONE))
-private val CONSTANT_X = Constant(byteArrayOf(Constant.DONT_CARE))
-private val CONSTANT_Z = Constant(byteArrayOf(Constant.HIGH_IMPEDANCE))
-
-public fun zero(): BitVector {
-    return CONSTANT_ZERO
-}
-
-public fun zeros(width: Int): BitVector {
-    return zero().repeat(width)
-}
-
-public fun one(): BitVector {
-    return CONSTANT_ONE
-}
-
-public fun ones(width: Int): BitVector {
-    return one().repeat(width)
-}
-
-public fun dontCare(width: Int = 1): BitVector {
-    return CONSTANT_X.repeat(width)
-}
-
-public fun highImpedance(width: Int = 1): BitVector {
-    return CONSTANT_Z.repeat(width)
-}
-
-public fun BitVector.slice(msb: Int, lsb: Int): BitVector {
-    return if (msb == width - 1 && lsb == 0) {
-        this
-    } else {
-        Slice(this, msb, lsb)
-    }
-}
-
-public operator fun BitVector.get(index: Int): BitVector {
-    return slice(index, index)
-}
-
-public fun BitVector.repeat(times: Int): BitVector {
-    return if (times == 1) {
-        this
-    } else {
-        return Repeat(this, times)
-    }
-}
-
-public fun BitVector.msb(): BitVector {
+public fun Signal.msb(): Signal {
     return this[width - 1]
 }
 
-public fun BitVector.lsb(): BitVector {
+public fun Signal.lsb(): Signal {
     return this[0]
 }
 
-public fun BitVector.truncate(newWidth: Int): BitVector {
+public fun Signal.truncate(newWidth: Int): Signal {
     return slice(newWidth - 1, 0)
 }
 
-public fun BitVector.zeroExtend(newWidth: Int): BitVector {
+public fun Signal.zeroExtend(newWidth: Int): Signal {
     return if (newWidth == width) {
         this
     } else {
@@ -102,7 +34,7 @@ public fun BitVector.zeroExtend(newWidth: Int): BitVector {
     }
 }
 
-public fun BitVector.signExtend(newWidth: Int): BitVector {
+public fun Signal.signExtend(newWidth: Int): Signal {
     return if (newWidth == width) {
         this
     } else {
@@ -110,39 +42,39 @@ public fun BitVector.signExtend(newWidth: Int): BitVector {
     }
 }
 
-public fun BitVector.inv(): BitVector {
+public fun Signal.inv(): Signal {
     return OnesComplement(this)
 }
 
-public fun BitVector.all(): BitVector {
+public fun Signal.all(): Signal {
     return ReductiveAnd(this)
 }
 
-public fun BitVector.any(): BitVector {
+public fun Signal.any(): Signal {
     return ReductiveOr(this)
 }
 
-public fun BitVector.parity(): BitVector {
+public fun Signal.parity(): Signal {
     return ReductiveXor(this)
 }
 
-public infix fun BitVector.and(rhs: BitVector): BitVector {
+public infix fun Signal.and(rhs: Signal): Signal {
     return And(this, rhs)
 }
 
-public infix fun BitVector.or(rhs: BitVector): BitVector {
+public infix fun Signal.or(rhs: Signal): Signal {
     return Or(this, rhs)
 }
 
-public infix fun BitVector.xor(rhs: BitVector): BitVector {
+public infix fun Signal.xor(rhs: Signal): Signal {
     return Xor(this, rhs)
 }
 
-public fun BitVector.register(clock: BitVector): BitVector {
+public fun Signal.register(clock: Signal): Signal {
     return Register(clock, width).apply { connectInput(this) }
 }
 
-public fun register(clock: BitVector, width: Int): Register {
+public fun register(clock: Signal, width: Int): Register {
     return Register(clock, width)
 }
 
@@ -150,24 +82,24 @@ public fun wire(width: Int): Wire {
     return Wire(width)
 }
 
-public infix fun BitVector.ne(other: BitVector): BitVector {
+public infix fun Signal.ne(other: Signal): Signal {
     return (this xor other).all()
 }
 
-public infix fun BitVector.eq(other: BitVector): BitVector {
+public infix fun Signal.eq(other: Signal): Signal {
     return (this ne other).inv()
 }
 
-public operator fun BitVector.plus(other: BitVector): BitVector {
+public operator fun Signal.plus(other: Signal): Signal {
     return Add(this, other)
 }
 
 public class SelectScope @PublishedApi internal constructor() {
     private var width: Int? = null
     private val clauses = mutableListOf<Clause>()
-    private var default: BitVector? = null
+    private var default: Signal? = null
 
-    public fun where(condition: BitVector, result: BitVector) {
+    public fun where(condition: Signal, result: Signal) {
         require(condition.width == 1)
 
         if (width == null) {
@@ -180,7 +112,7 @@ public class SelectScope @PublishedApi internal constructor() {
     }
 
     @OptIn(ExperimentalContracts::class)
-    public inline fun where(condition: BitVector, block: () -> BitVector) {
+    public inline fun where(condition: Signal, block: () -> Signal) {
         contract {
             callsInPlace(block, InvocationKind.EXACTLY_ONCE)
         }
@@ -188,7 +120,7 @@ public class SelectScope @PublishedApi internal constructor() {
         where(condition, block())
     }
 
-    public fun otherwise(result: BitVector) {
+    public fun otherwise(result: Signal) {
         if (width == null) {
             width = result.width
         } else {
@@ -199,7 +131,7 @@ public class SelectScope @PublishedApi internal constructor() {
     }
 
     @OptIn(ExperimentalContracts::class)
-    public inline fun otherwise(block: () -> BitVector) {
+    public inline fun otherwise(block: () -> Signal) {
         contract {
             callsInPlace(block, InvocationKind.EXACTLY_ONCE)
         }
@@ -223,17 +155,17 @@ public class SelectScope @PublishedApi internal constructor() {
         default = ones(checkNotNull(width))
     }
 
-    @PublishedApi internal fun build(): BitVector {
+    @PublishedApi internal fun build(): Signal {
         return clauses.foldRight(checkNotNull(default)) { (condition, ifTrue), ifFalse ->
             (condition and ifTrue) or (condition.inv() and ifFalse)
         }
     }
 
-    private data class Clause(val condition: BitVector, val result: BitVector)
+    private data class Clause(val condition: Signal, val result: Signal)
 }
 
 @OptIn(ExperimentalContracts::class)
-public inline fun select(block: SelectScope.() -> Unit): BitVector {
+public inline fun select(block: SelectScope.() -> Unit): Signal {
     contract {
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)
     }
@@ -241,28 +173,28 @@ public inline fun select(block: SelectScope.() -> Unit): BitVector {
     return SelectScope().apply(block).build()
 }
 
-public fun Int.bits(width: Int): BitVector {
+public fun Int.bits(width: Int): Signal {
     require(width >= 33 - (if (this < 0) inv() else this).countLeadingZeroBits())
     return Constant(ByteArray(width) {
         (this shr maxOf(it, 31) and 1).toByte()
     })
 }
 
-public fun Long.bits(width: Int): BitVector {
+public fun Long.bits(width: Int): Signal {
     require(width >= 65 - (if (this < 0) inv() else this).countLeadingZeroBits())
     return Constant(ByteArray(width) {
         (this shr maxOf(it, 63) and 1).toByte()
     })
 }
 
-public fun UInt.bits(width: Int): BitVector {
+public fun UInt.bits(width: Int): Signal {
     require(width >= 32 - countLeadingZeroBits())
     return Constant(ByteArray(width) {
         if (it >= 32) 0 else (this shr it and 1u).toByte()
     })
 }
 
-public fun ULong.bits(width: Int): BitVector {
+public fun ULong.bits(width: Int): Signal {
     require(width >= 64 - countLeadingZeroBits())
     return Constant(ByteArray(width) {
         if (it >= 64) 0 else (this shr it and 1u).toByte()

@@ -1,22 +1,23 @@
 package org.khdl.codegen
 
-import org.khdl.ir.Add
-import org.khdl.ir.And
-import org.khdl.ir.BitVector
-import org.khdl.ir.Concat
-import org.khdl.ir.Constant
-import org.khdl.ir.Register
-import org.khdl.ir.Wire
-import org.khdl.ir.Module
-import org.khdl.ir.ModuleInput
-import org.khdl.ir.OnesComplement
-import org.khdl.ir.Or
-import org.khdl.ir.ReductiveAnd
-import org.khdl.ir.ReductiveOr
-import org.khdl.ir.ReductiveXor
-import org.khdl.ir.Repeat
-import org.khdl.ir.Slice
-import org.khdl.ir.Xor
+import org.khdl.dsl.AddNode
+import org.khdl.dsl.AndNode
+import org.khdl.dsl.ConcatNode
+import org.khdl.dsl.ConstantNode
+import org.khdl.dsl.Module
+import org.khdl.dsl.ModuleInputNode
+import org.khdl.dsl.NilNode
+import org.khdl.dsl.Node
+import org.khdl.dsl.OnesComplementNode
+import org.khdl.dsl.OrNode
+import org.khdl.dsl.ReductiveAndNode
+import org.khdl.dsl.ReductiveOrNode
+import org.khdl.dsl.ReductiveXorNode
+import org.khdl.dsl.RegisterNode
+import org.khdl.dsl.RepeatNode
+import org.khdl.dsl.SliceNode
+import org.khdl.dsl.WireNode
+import org.khdl.dsl.XorNode
 import java.util.IdentityHashMap
 
 public fun Module.toSystemVerilog(): String {
@@ -25,20 +26,20 @@ public fun Module.toSystemVerilog(): String {
 
 public fun Module.toSystemVerilog(output: Appendable) {
     var nextAutoId = 0
-    val names = IdentityHashMap<BitVector, String>()
-    val toVisit = ArrayDeque<BitVector>()
+    val names = IdentityHashMap<Node, String>()
+    val toVisit = ArrayDeque<Node>()
 
-    fun getOrAssignName(node: BitVector): String {
+    fun getOrAssignName(node: Node): String {
         return names.getOrPut(node) {
             when (node) {
-                is Constant -> buildString {
+                is ConstantNode -> buildString {
                     append("${node.width}'b")
                     node.value.forEach { byte ->
                         append(when (byte) {
-                            Constant.ZERO -> '0'
-                            Constant.ONE -> '1'
-                            Constant.DONT_CARE -> 'X'
-                            Constant.HIGH_IMPEDANCE -> 'Z'
+                            ConstantNode.ZERO -> '0'
+                            ConstantNode.ONE -> '1'
+                            ConstantNode.DONT_CARE -> 'X'
+                            ConstantNode.HIGH_IMPEDANCE -> 'Z'
                             else -> error("Invalid constant")
                         })
                     }
@@ -101,7 +102,7 @@ public fun Module.toSystemVerilog(output: Appendable) {
     output.appendLine(");")
     output.appendLine()
 
-    val visited = IdentityHashMap<BitVector, Unit>()
+    val visited = IdentityHashMap<Node, Unit>()
 
     while (toVisit.isNotEmpty()) {
         val node = toVisit.removeFirst()
@@ -113,57 +114,57 @@ public fun Module.toSystemVerilog(output: Appendable) {
         val name = names[node]
 
         when (node) {
-            is Constant, is ModuleInput -> {}
+            is ConstantNode, is ModuleInputNode, is NilNode -> {}
 
-            is Wire -> {
+            is WireNode -> {
                 output.appendLine("assign $name = ${getOrAssignName(node.driver)};")
             }
 
-            is Register -> {
+            is RegisterNode -> {
                 output.appendLine("always_ff @ (posedge ${getOrAssignName(node.clock)}) $name <= ${getOrAssignName(node.input)};")
             }
 
-            is Concat -> {
+            is ConcatNode -> {
                 output.appendLine("assign $name = ${node.parts.joinToString(separator = ", ", prefix = "{", postfix = "}") { getOrAssignName(it) }};")
             }
 
-            is Slice -> {
+            is SliceNode -> {
                 output.appendLine("assign $name = ${getOrAssignName(node.subject)}[${node.msb}:${node.lsb}];")
             }
 
-            is And -> {
+            is AndNode -> {
                 output.appendLine("assign $name = ${getOrAssignName(node.lhs)} & ${getOrAssignName(node.rhs)};")
             }
 
-            is Or -> {
+            is OrNode -> {
                 output.appendLine("assign $name = ${getOrAssignName(node.lhs)} | ${getOrAssignName(node.rhs)};")
             }
 
-            is Xor -> {
+            is XorNode -> {
                 output.appendLine("assign $name = ${getOrAssignName(node.lhs)} ^ ${getOrAssignName(node.rhs)};")
             }
 
-            is ReductiveAnd -> {
+            is ReductiveAndNode -> {
                 output.appendLine("assign $name = &${getOrAssignName(node.operand)};")
             }
 
-            is ReductiveOr -> {
+            is ReductiveOrNode -> {
                 output.appendLine("assign $name = |${getOrAssignName(node.operand)};")
             }
 
-            is ReductiveXor -> {
+            is ReductiveXorNode -> {
                 output.appendLine("assign $name = ^${getOrAssignName(node.operand)};")
             }
 
-            is Repeat -> {
+            is RepeatNode -> {
                 output.appendLine("assign $name = {${node.times}{${getOrAssignName(node.subject)}}};")
             }
 
-            is OnesComplement -> {
+            is OnesComplementNode -> {
                 output.appendLine("assign $name = ~${getOrAssignName(node.operand)};")
             }
 
-            is Add -> {
+            is AddNode -> {
                 output.appendLine("assign $name = ${getOrAssignName(node.lhs)} + ${getOrAssignName(node.rhs)};")
             }
         }
