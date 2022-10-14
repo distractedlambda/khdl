@@ -30,6 +30,7 @@ public fun Module.toSystemVerilog(output: Appendable) {
     val toVisit = ArrayDeque<Node>()
 
     fun getOrAssignName(node: Node): String {
+        require(node.width != 0)
         return names.getOrPut(node) {
             when (node) {
                 is ConstantNode -> buildString {
@@ -65,6 +66,7 @@ public fun Module.toSystemVerilog(output: Appendable) {
     val portDecls = mutableListOf<String>()
 
     inputs.mapTo(portDecls) {
+        require(it.width != 0)
         names[it] = it.name
         if (it.width == 1) {
             "input logic ${it.name}"
@@ -74,6 +76,7 @@ public fun Module.toSystemVerilog(output: Appendable) {
     }
 
     outputs.mapTo(portDecls) { (name, driver) ->
+        require(driver.width != 0)
         names[driver] = name
         toVisit.add(driver)
         if (driver.width == 1) {
@@ -129,7 +132,7 @@ public fun Module.toSystemVerilog(output: Appendable) {
             }
 
             is SliceNode -> {
-                output.appendLine("assign $name = ${getOrAssignName(node.subject)}[${node.msb}:${node.lsb}];")
+                output.appendLine("assign $name = ${getOrAssignName(node.subject)}[${node.start + node.width - 1}:${node.start}];")
             }
 
             is AndNode -> {

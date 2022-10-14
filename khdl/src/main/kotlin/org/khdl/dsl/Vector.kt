@@ -21,13 +21,25 @@ public fun ones(width: Int): Signal<Vector<Bit>> {
 
 public operator fun <T : Type> Signal<Vector<T>>.get(index: Int): Signal<T> {
     checkIndex(index, type.size)
-    TODO()
+    return Signal(type.element, SliceNode(node, multiplyExact(index, type.element.bitWidth), type.element.bitWidth))
+}
+
+public fun <T : Type> Signal<Vector<T>>.first(): Signal<T> {
+    return if (type.size == 0) {
+        throw NoSuchElementException()
+    } else {
+        get(0)
+    }
+}
+
+public fun <T : Type> Signal<Vector<T>>.last(): Signal<T> {
+    return if (type.size == 0) {
+        throw NoSuchElementException()
+    } else {
+        get(type.size - 1)
+    }
 }
 
 public fun <T : Type> Signal<T>.repeat(times: Int): Signal<Vector<T>> {
-    return when {
-        times < 0 -> throw IllegalArgumentException()
-        times == 0 -> Signal(Vector(type, 0), NilNode)
-        else -> Signal(Vector(type, times), RepeatNode(node, times))
-    }
+    return Signal(Vector(type, times), RepeatNode(node, times))
 }
