@@ -1,5 +1,9 @@
 package org.khdl.dsl
 
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
+
 public class Module private constructor(
     public val name: String,
     internal val inputs: List<ModuleInputNode>,
@@ -28,4 +32,13 @@ public class Module private constructor(
     }
 
     internal data class OutputPort(val name: String, val driver: Node)
+}
+
+@OptIn(ExperimentalContracts::class)
+public inline fun buildModule(name: String, block: Module.Builder.() -> Unit): Module {
+    contract {
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
+
+    return Module.Builder(name).apply(block).build()
 }

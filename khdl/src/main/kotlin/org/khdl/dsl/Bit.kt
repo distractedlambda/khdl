@@ -20,6 +20,22 @@ public fun highImpedance(): Signal<Bit> {
     return Signal(Bit, CONSTANT_Z)
 }
 
+public infix fun Signal<Bit>.and(rhs: Signal<Bit>): Signal<Bit> {
+    return Signal(Bit, AndNode(node, rhs.node))
+}
+
+public infix fun Signal<Bit>.or(rhs: Signal<Bit>): Signal<Bit> {
+    return Signal(Bit, OrNode(node, rhs.node))
+}
+
+public infix fun Signal<Bit>.xor(rhs: Signal<Bit>): Signal<Bit> {
+    return Signal(Bit, XorNode(node, rhs.node))
+}
+
+public fun Signal<Bit>.inv(): Signal<Bit> {
+    return Signal(Bit, OnesComplementNode(node))
+}
+
 private val CONSTANT_ZERO = ConstantNode(byteArrayOf(ConstantNode.ZERO))
 private val CONSTANT_ONE = ConstantNode(byteArrayOf(ConstantNode.ONE))
 private val CONSTANT_X = ConstantNode(byteArrayOf(ConstantNode.DONT_CARE))

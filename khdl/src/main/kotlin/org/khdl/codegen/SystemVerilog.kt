@@ -128,6 +128,7 @@ public fun Module.toSystemVerilog(output: Appendable) {
             }
 
             is ConcatNode -> {
+                // FIXME: does this order need to be reversed?
                 output.appendLine("assign $name = ${node.parts.joinToString(separator = ", ", prefix = "{", postfix = "}") { getOrAssignName(it) }};")
             }
 
