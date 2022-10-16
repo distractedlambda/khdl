@@ -44,8 +44,8 @@ public fun Module.toSystemVerilog(output: Appendable) {
             when (node) {
                 is ConstantNode -> buildString {
                     append("${node.width}'b")
-                    node.value.forEach { byte ->
-                        append(when (byte) {
+                    for (i in node.value.indices.reversed()) {
+                        append(when (node.value[i]) {
                             ConstantNode.ZERO -> '0'
                             ConstantNode.ONE -> '1'
                             ConstantNode.DONT_CARE -> 'X'
