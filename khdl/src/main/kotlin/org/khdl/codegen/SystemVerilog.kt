@@ -3,7 +3,9 @@ package org.khdl.codegen
 import org.khdl.dsl.AddNode
 import org.khdl.dsl.AndNode
 import org.khdl.dsl.ConcatNode
+import org.khdl.dsl.ConditionalNode
 import org.khdl.dsl.ConstantNode
+import org.khdl.dsl.EqNode
 import org.khdl.dsl.Module
 import org.khdl.dsl.ModuleInputNode
 import org.khdl.dsl.NilNode
@@ -15,9 +17,16 @@ import org.khdl.dsl.ReductiveOrNode
 import org.khdl.dsl.ReductiveXorNode
 import org.khdl.dsl.RegisterNode
 import org.khdl.dsl.RepeatNode
+import org.khdl.dsl.SignExtendNode
+import org.khdl.dsl.SignedLtNode
+import org.khdl.dsl.SignedMultiplyNode
 import org.khdl.dsl.SliceNode
+import org.khdl.dsl.TwosComplementNode
+import org.khdl.dsl.UnsignedLtNode
+import org.khdl.dsl.UnsignedMultiplyNode
 import org.khdl.dsl.WireNode
 import org.khdl.dsl.XorNode
+import org.khdl.dsl.ZeroExtendNode
 import java.util.IdentityHashMap
 
 public fun Module.toSystemVerilog(): String {
@@ -65,24 +74,30 @@ public fun Module.toSystemVerilog(output: Appendable) {
 
     val portDecls = mutableListOf<String>()
 
-    inputs.mapTo(portDecls) {
-        require(it.width != 0)
-        names[it] = it.name
-        if (it.width == 1) {
-            "input logic ${it.name}"
+    inputs.mapNotNullTo(portDecls) {
+        if (it.width != 0) {
+            names[it] = it.name
+            if (it.width == 1) {
+                "input logic ${it.name}"
+            } else {
+                "input logic [${it.width - 1}:0] ${it.name}"
+            }
         } else {
-            "input logic [${it.width - 1}:0] ${it.name}"
+            null
         }
     }
 
-    outputs.mapTo(portDecls) { (name, driver) ->
-        require(driver.width != 0)
-        names[driver] = name
-        toVisit.add(driver)
-        if (driver.width == 1) {
-            "output logic $name"
+    outputs.mapNotNullTo(portDecls) { (name, driver) ->
+        if (driver.width != 0) {
+            names[driver] = name
+            toVisit.add(driver)
+            if (driver.width == 1) {
+                "output logic $name"
+            } else {
+                "output logic [${driver.width - 1}:0] $name"
+            }
         } else {
-            "output logic [${driver.width - 1}:0] $name"
+            null
         }
     }
 
@@ -128,12 +143,55 @@ public fun Module.toSystemVerilog(output: Appendable) {
             }
 
             is ConcatNode -> {
-                // FIXME: does this order need to be reversed?
-                output.appendLine("assign $name = ${node.parts.joinToString(separator = ", ", prefix = "{", postfix = "}") { getOrAssignName(it) }};")
+                val partNames = mutableListOf<String>()
+
+                for (i in node.parts.indices.reversed()) {
+                    if (node.parts[i].width != 0) {
+                        partNames.add(getOrAssignName(node.parts[i]))
+                    }
+                }
+
+                output.appendLine("assign $name = ${partNames.joinToString(separator = ", ", prefix = "{", postfix = "}")};")
             }
 
             is SliceNode -> {
-                output.appendLine("assign $name = ${getOrAssignName(node.subject)}[${node.start + node.width - 1}:${node.start}];")
+                val range = if (node.width > 1) {
+                    "${node.start + node.width - 1}:${node.start}"
+                } else {
+                    node.start.toString()
+                }
+
+                output.appendLine("assign $name = ${getOrAssignName(node.subject)}[$range];")
+            }
+
+            is ReductiveAndNode -> {
+                val rhs = if (node.operand.width != 0) {
+                    "&${getOrAssignName(node.operand)}"
+                } else {
+                    "'1"
+                }
+
+                output.appendLine("assign $name = $rhs;")
+            }
+
+            is ReductiveOrNode -> {
+                val rhs = if (node.operand.width != 0) {
+                    "|${getOrAssignName(node.operand)}"
+                } else {
+                    "'0"
+                }
+
+                output.appendLine("assign $name = $rhs;")
+            }
+
+            is ReductiveXorNode -> {
+                val rhs = if (node.operand.width != 0) {
+                    "^${getOrAssignName(node.operand)}"
+                } else {
+                    "'0"
+                }
+
+                output.appendLine("assign $name = $rhs;")
             }
 
             is AndNode -> {
@@ -148,16 +206,66 @@ public fun Module.toSystemVerilog(output: Appendable) {
                 output.appendLine("assign $name = ${getOrAssignName(node.lhs)} ^ ${getOrAssignName(node.rhs)};")
             }
 
-            is ReductiveAndNode -> {
-                output.appendLine("assign $name = &${getOrAssignName(node.operand)};")
+            is AddNode -> {
+                output.appendLine("assign $name = ${getOrAssignName(node.lhs)} + ${getOrAssignName(node.rhs)};")
             }
 
-            is ReductiveOrNode -> {
-                output.appendLine("assign $name = |${getOrAssignName(node.operand)};")
+            is ZeroExtendNode -> {
+                val rhs = if (node.operand.width != 0) {
+                    getOrAssignName(node.operand)
+                } else {
+                    "'0"
+                }
+
+                output.appendLine("assign $name = $rhs;")
             }
 
-            is ReductiveXorNode -> {
-                output.appendLine("assign $name = ^${getOrAssignName(node.operand)};")
+            is SignExtendNode -> {
+                val rhs = if (node.operand.width != 0) {
+                    "\$signed(${getOrAssignName(node.operand)})"
+                } else {
+                    "'0"
+                }
+
+                output.appendLine("assign $name = $rhs;")
+            }
+
+            is EqNode -> {
+                val rhs = if (node.lhs.width != 0) {
+                    "${getOrAssignName(node.lhs)} == ${getOrAssignName(node.rhs)}"
+                } else {
+                    "'1"
+                }
+
+                output.appendLine("assign $name = $rhs;")
+            }
+
+            is UnsignedLtNode -> {
+                val rhs = if (node.lhs.width != 0) {
+                    "${getOrAssignName(node.lhs)} < ${getOrAssignName(node.rhs)}"
+                } else {
+                    "'0"
+                }
+
+                output.appendLine("assign $name = $rhs;")
+            }
+
+            is SignedLtNode -> {
+                val rhs = if (node.lhs.width != 0) {
+                    "\$signed(${getOrAssignName(node.lhs)}) < \$signed(${getOrAssignName(node.rhs)})"
+                } else {
+                    "'0"
+                }
+
+                output.appendLine("assign $name = $rhs;")
+            }
+
+            is UnsignedMultiplyNode -> {
+                output.appendLine("assign $name = ${getOrAssignName(node.lhs)} * ${getOrAssignName(node.rhs)};")
+            }
+
+            is SignedMultiplyNode -> {
+                output.appendLine("assign $name = \$signed(${getOrAssignName(node.lhs)}) * \$signed(${getOrAssignName(node.rhs)});")
             }
 
             is RepeatNode -> {
@@ -168,8 +276,12 @@ public fun Module.toSystemVerilog(output: Appendable) {
                 output.appendLine("assign $name = ~${getOrAssignName(node.operand)};")
             }
 
-            is AddNode -> {
-                output.appendLine("assign $name = ${getOrAssignName(node.lhs)} + ${getOrAssignName(node.rhs)};")
+            is TwosComplementNode -> {
+                output.appendLine("assign $name = -${getOrAssignName(node.operand)};")
+            }
+
+            is ConditionalNode -> {
+                output.appendLine("assign $name = ${getOrAssignName(node.condition)} ? ${getOrAssignName(node.ifTrue)} : ${getOrAssignName(node.ifFalse)};")
             }
         }
 

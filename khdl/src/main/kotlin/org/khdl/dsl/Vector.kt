@@ -28,8 +28,8 @@ public fun <T : Type> vector(element: T, size: Int, block: (Int) -> Signal<T>): 
 
     return Signal(
         Vector(element, size),
-        concat(
-            List(size) { index ->
+        ConcatNode(
+            Array(size) { index ->
                 block(index).let {
                     require(it.type == element)
                     it.node
@@ -80,7 +80,7 @@ public inline fun <T : Type> Signal<Vector<T>>.forEach(block: (Signal<T>) -> Uni
 
 public operator fun <T : Type> Signal<Vector<T>>.get(index: Int): Signal<T> {
     checkIndex(index, type.size)
-    return Signal(type.element, node.slice(multiplyExact(index, type.element.bitWidth), type.element.bitWidth))
+    return Signal(type.element, SliceNode(node, multiplyExact(index, type.element.bitWidth), type.element.bitWidth))
 }
 
 public operator fun <T : Type> Signal<Vector<T>>.get(indices: IntProgression): Signal<Vector<T>> {
@@ -90,17 +90,21 @@ public operator fun <T : Type> Signal<Vector<T>>.get(indices: IntProgression): S
         checkFromIndexSize(indices.first, size, type.size)
         Signal(
             Vector(type.element, size),
-            node.slice(multiplyExact(indices.first, type.element.bitWidth), multiplyExact(size, type.element.bitWidth)),
+            SliceNode(
+                node,
+                multiplyExact(indices.first, type.element.bitWidth),
+                multiplyExact(size, type.element.bitWidth),
+            ),
         )
     } else {
         val indexList = indices.toList()
         Signal(
             Vector(type.element, indexList.size),
-            concat(
+            ConcatNode(
                 indexList.map {
                     checkIndex(it, type.size)
-                    node.slice(multiplyExact(it, type.element.bitWidth), type.element.bitWidth)
-                }
+                    SliceNode(node, multiplyExact(it, type.element.bitWidth), type.element.bitWidth)
+                }.toTypedArray()
             ),
         )
     }
@@ -163,7 +167,7 @@ public operator fun <T : Type> Signal<Vector<T>>.component9(): Signal<T> {
 }
 
 public fun <T : Type> Signal<T>.repeat(times: Int): Signal<Vector<T>> {
-    return Signal(Vector(type, times), node.repeat(times))
+    return Signal(Vector(type, times), RepeatNode(node, times))
 }
 
 public fun <T : Type> Signal<Vector<Vector<T>>>.flatten(): Signal<Vector<T>> {
@@ -176,19 +180,19 @@ public fun <T : Type> Signal<Vector<T>>.repeatConcat(times: Int): Signal<Vector<
 
 public operator fun <T : Type> Signal<Vector<T>>.plus(rhs: Signal<Vector<T>>): Signal<Vector<T>> {
     require(type.element == rhs.type.element)
-    return Signal(Vector(type.element, addExact(type.size, rhs.type.size)), concat(node, rhs.node))
+    return Signal(Vector(type.element, addExact(type.size, rhs.type.size)), ConcatNode(arrayOf(node, rhs.node)))
 }
 
 public fun Signal<Vector<Bit>>.all(): Signal<Bit> {
-    return Signal(Bit, node.reductiveAnd())
+    return Signal(Bit, ReductiveAndNode(node))
 }
 
 public fun Signal<Vector<Bit>>.any(): Signal<Bit> {
-    return Signal(Bit, node.reductiveOr())
+    return Signal(Bit, ReductiveOrNode(node))
 }
 
 public fun Signal<Vector<Bit>>.parity(): Signal<Bit> {
-    return Signal(Bit, node.reductiveXor())
+    return Signal(Bit, ReductiveXorNode(node))
 }
 
 public fun Signal<Vector<Bit>>.inv(): Signal<Vector<Bit>> {

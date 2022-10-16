@@ -2,7 +2,6 @@ package org.khdl.dsl
 
 import java.lang.Math.addExact
 import java.lang.Math.multiplyExact
-import java.util.Objects.checkFromIndexSize
 
 internal sealed class Node(internal val width: Int) {
     init {
@@ -18,61 +17,6 @@ internal sealed class Node(internal val width: Int) {
     }
 }
 
-internal fun Node.repeat(times: Int): Node {
-    return when (times) {
-        0 -> NilNode
-        1 -> if (width > 0) this else NilNode
-        in 2..Int.MAX_VALUE -> if (width > 0) RepeatNode(this, times) else NilNode
-        else -> throw IllegalArgumentException()
-    }
-}
-
-internal fun Node.slice(start: Int, width: Int): Node {
-    checkFromIndexSize(start, width, this.width)
-    return when (width) {
-        0 -> NilNode
-        this.width -> this
-        else -> SliceNode(this, start, width)
-    }
-}
-
-internal fun Node.reductiveAnd(): Node {
-    return when (width) {
-        0 -> ConstantNode(byteArrayOf(ConstantNode.ONE))
-        1 -> this
-        else -> ReductiveAndNode(this)
-    }
-}
-
-internal fun Node.reductiveOr(): Node {
-    return when (width) {
-        0 -> ConstantNode(byteArrayOf(ConstantNode.ZERO))
-        1 -> this
-        else -> ReductiveOrNode(this)
-    }
-}
-
-internal fun Node.reductiveXor(): Node {
-    return when (width) {
-        0 -> ConstantNode(byteArrayOf(ConstantNode.ZERO))
-        1 -> this
-        else -> ReductiveXorNode(this)
-    }
-}
-
-internal fun concat(nodes: Iterable<Node>): Node {
-    val parts = nodes.mapNotNull { it.takeIf { it.width > 0 } }
-    return when (parts.size) {
-        0 -> NilNode
-        1 -> parts.single()
-        else -> ConcatNode(parts.toTypedArray())
-    }
-}
-
-internal fun concat(vararg nodes: Node): Node {
-    return concat(nodes.asIterable())
-}
-
 internal object NilNode : Node(0) {
     override fun toString(): String {
         return "{}"
@@ -80,10 +24,6 @@ internal object NilNode : Node(0) {
 }
 
 internal class ConstantNode(val value: ByteArray) : Node(value.size) {
-    init {
-        require(value.isNotEmpty())
-    }
-
     override fun toString(): String {
         return buildString {
             append("'")
@@ -131,21 +71,12 @@ internal class RegisterNode(val input: Node, val clock: Node) : Node(input.width
 }
 
 internal class ModuleInputNode(val name: String, width: Int) : Node(width) {
-    init {
-        require(width > 0)
-    }
-
     override fun toString(): String {
         return "<$width>$name"
     }
 }
 
 internal class ConcatNode(val parts: Array<Node>) : Node(parts.fold(0) { acc, node -> addExact(acc, node.width) }) {
-    init {
-        require(parts.isNotEmpty())
-        require(parts.all { it.width > 0 })
-    }
-
     override fun toString(): String {
         return parts.joinToString(separator = ", ", prefix = "{", postfix = "}")
     }
@@ -153,8 +84,7 @@ internal class ConcatNode(val parts: Array<Node>) : Node(parts.fold(0) { acc, no
 
 internal class RepeatNode(val subject: Node, val times: Int) : Node(multiplyExact(subject.width, times)) {
     init {
-        require(subject.width > 0)
-        require(times > 0)
+        require(times >= 0)
     }
 
     override fun toString(): String {
@@ -164,13 +94,32 @@ internal class RepeatNode(val subject: Node, val times: Int) : Node(multiplyExac
 
 internal class SliceNode(val subject: Node, val start: Int, width: Int) : Node(width) {
     init {
-        require(subject.width > 0)
         require(width in 1..subject.width)
         require(start in 0..(subject.width - width))
     }
 
     override fun toString(): String {
         return "$subject[$start..${start + width - 1}]"
+    }
+}
+
+internal class ZeroExtendNode(width: Int, val operand: Node) : Node(width) {
+    init {
+        require(width >= operand.width)
+    }
+
+    override fun toString(): String {
+        return "($operand zext $width)"
+    }
+}
+
+internal class SignExtendNode(width: Int, val operand: Node) : Node(width) {
+    init {
+        require(width >= operand.width)
+    }
+
+    override fun toString(): String {
+        return "($operand sext $width)"
     }
 }
 
@@ -205,52 +154,102 @@ internal class XorNode(val lhs: Node, val rhs: Node) : Node(lhs.width) {
 }
 
 internal class ReductiveAndNode(val operand: Node) : Node(1) {
-    init {
-        require(operand.width > 1)
-    }
-
     override fun toString(): String {
         return "&$operand"
     }
 }
 
 internal class ReductiveOrNode(val operand: Node) : Node(1) {
-    init {
-        require(operand.width > 1)
-    }
-
     override fun toString(): String {
         return "|$operand"
     }
 }
 
 internal class ReductiveXorNode(val operand: Node) : Node(1) {
-    init {
-        require(operand.width > 1)
-    }
-
     override fun toString(): String {
         return "^$operand"
     }
 }
 
 internal class OnesComplementNode(val operand: Node) : Node(operand.width) {
-    init {
-        require(operand.width > 0)
-    }
-
     override fun toString(): String {
        return "~$operand"
     }
 }
 
-internal class AddNode(val lhs: Node, val rhs: Node) : Node(addExact(lhs.width, 1)) {
+internal class TwosComplementNode(val operand: Node) : Node(operand.width) {
+    override fun toString(): String {
+        return "-$operand"
+    }
+}
+
+internal class AddNode(val lhs: Node, val rhs: Node) : Node(lhs.width) {
     init {
         require(lhs.width == rhs.width)
-        require(lhs.width > 0)
     }
 
     override fun toString(): String {
         return "($lhs + $rhs)"
+    }
+}
+
+internal class UnsignedMultiplyNode(val lhs: Node, val rhs: Node) : Node(lhs.width) {
+    init {
+        require(lhs.width == rhs.width)
+    }
+
+    override fun toString(): String {
+        return "($lhs u* $rhs)"
+    }
+}
+
+internal class SignedMultiplyNode(val lhs: Node, val rhs: Node) : Node(lhs.width) {
+    init {
+        require(lhs.width == rhs.width)
+    }
+
+    override fun toString(): String {
+        return "($lhs s* $rhs)"
+    }
+}
+
+internal class EqNode(val lhs: Node, val rhs: Node) : Node(1) {
+    init {
+        require(lhs.width == rhs.width)
+    }
+
+    override fun toString(): String {
+        return "($lhs == $rhs)"
+    }
+}
+
+internal class UnsignedLtNode(val lhs: Node, val rhs: Node) : Node(1) {
+    init {
+        require(lhs.width == rhs.width)
+    }
+
+    override fun toString(): String {
+        return "($lhs u< $rhs)"
+    }
+}
+
+internal class SignedLtNode(val lhs: Node, val rhs: Node) : Node(1) {
+    init {
+        require(lhs.width == rhs.width)
+    }
+
+    override fun toString(): String {
+        return "($lhs s< $rhs)"
+    }
+}
+
+internal class ConditionalNode(val condition: Node, val ifTrue: Node, val ifFalse: Node) : Node(ifTrue.width) {
+    init {
+        require(condition.width == 1)
+        require(ifTrue.width == ifFalse.width)
+    }
+
+    override fun toString(): String {
+        return "($condition ? $ifTrue : $ifFalse)"
     }
 }
