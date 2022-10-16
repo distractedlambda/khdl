@@ -288,5 +288,5 @@ public fun Module.toSystemVerilog(output: Appendable) {
         output.appendLine()
     }
 
-    output.appendLine("endmodule;")
+    output.appendLine("endmodule")
 }

@@ -6,11 +6,13 @@ import org.khdl.dsl.buildModule
 import org.khdl.examples.riscv.GprReadPort
 import org.khdl.examples.riscv.GprWritePort
 import org.khdl.examples.riscv.registerFile
+import kotlin.io.path.Path
+import kotlin.io.path.bufferedWriter
 
 fun main() {
     val module = buildModule("regfile") {
         val readPorts = List(2) { GprReadPort() }
-        val writePorts = List(2) { GprWritePort() }
+        val writePorts = List(1) { GprWritePort() }
 
         val clock = addInput("clock", Clock)
 
@@ -28,5 +30,7 @@ fun main() {
         registerFile(clock, readPorts, writePorts)
     }
 
-    println(module.toSystemVerilog())
+    Path("${module.name}.sv").bufferedWriter().use {
+        module.toSystemVerilog(it)
+    }
 }

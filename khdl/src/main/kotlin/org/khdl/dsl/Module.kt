@@ -21,7 +21,7 @@ public class Module private constructor(
             return Signal(type, node)
         }
 
-        public fun <T : Type> Wire<T>.exportInput(name: String) {
+        public fun <T : Type> Port<T>.exportInput(name: String) {
             connectDriver(addInput(name, signal.type))
         }
 
@@ -30,7 +30,7 @@ public class Module private constructor(
             outputs.add(OutputPort(name, value.node))
         }
 
-        public fun Wire<*>.exportOutput(name: String) {
+        public fun Port<*>.exportOutput(name: String) {
             addOutput(name, signal)
         }
 

@@ -8,7 +8,7 @@ public sealed interface Output<in T : Type> {
     public fun connectDriver(driver: Signal<T>)
 }
 
-public class Wire<T : Type>(type: T) : Input<T>, Output<T> {
+public class Port<T : Type>(type: T) : Input<T>, Output<T> {
     override val signal: Signal<T> = Signal(type, WireNode(type.bitWidth))
 
     override fun connectDriver(driver: Signal<T>) {

@@ -8,7 +8,7 @@ import org.khdl.dsl.Register
 import org.khdl.dsl.Signal
 import org.khdl.dsl.Unsigned
 import org.khdl.dsl.Vector
-import org.khdl.dsl.Wire
+import org.khdl.dsl.Port
 import org.khdl.dsl.and
 import org.khdl.dsl.dontCare
 import org.khdl.dsl.eq
@@ -27,8 +27,8 @@ interface GprReadResponder {
 }
 
 data class GprReadPort(
-    override val registerIndex: Wire<Unsigned> = Wire(Unsigned(5)),
-    override val data: Wire<Vector<Bit>> = Wire(Vector(Bit, 32)),
+    override val registerIndex: Port<Unsigned> = Port(Unsigned(5)),
+    override val data: Port<Vector<Bit>> = Port(Vector(Bit, 32)),
 ) : GprReadRequester, GprReadResponder
 
 interface GprWriteRequester {
@@ -44,9 +44,9 @@ interface GprWriteResponder {
 }
 
 data class GprWritePort(
-    override val registerIndex: Wire<Unsigned> = Wire(Unsigned(5)),
-    override val data: Wire<Vector<Bit>> = Wire(Vector(Bit, 32)),
-    override val writeEnable: Wire<Bit> = Wire(Bit),
+    override val registerIndex: Port<Unsigned> = Port(Unsigned(5)),
+    override val data: Port<Vector<Bit>> = Port(Vector(Bit, 32)),
+    override val writeEnable: Port<Bit> = Port(Bit),
 ) : GprWriteRequester, GprWriteResponder
 
 fun registerFile(
