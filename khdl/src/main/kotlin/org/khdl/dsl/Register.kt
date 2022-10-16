@@ -1,6 +1,6 @@
 package org.khdl.dsl
 
-public class Register<T : Type> internal constructor(type: T, clock: Signal<Clock>) {
+public class Register<T : Type>(type: T, clock: Signal<Clock>) {
     public val signal: Signal<T> = Signal(type, RegisterNode(WireNode(type.bitWidth), clock.node))
 
     public val clock: Signal<Clock>
