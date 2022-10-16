@@ -21,9 +21,17 @@ public class Module private constructor(
             return Signal(type, node)
         }
 
+        public fun <T : Type> Wire<T>.exportInput(name: String) {
+            connectDriver(addInput(name, signal.type))
+        }
+
         public fun addOutput(name: String, value: Signal<*>) {
             check(usedPortNames.add(name))
             outputs.add(OutputPort(name, value.node))
+        }
+
+        public fun Wire<*>.exportOutput(name: String) {
+            addOutput(name, signal)
         }
 
         public fun build(): Module {

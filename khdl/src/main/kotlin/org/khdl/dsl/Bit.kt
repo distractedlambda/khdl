@@ -4,6 +4,10 @@ public object Bit : Type {
     override val bitWidth: Int get() = 1
 }
 
+public val Boolean.bit: Signal<Bit> get() {
+    return if (this) one() else zero()
+}
+
 public fun zero(): Signal<Bit> {
     return Signal(Bit, CONSTANT_ZERO)
 }
