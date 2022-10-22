@@ -1,5 +1,7 @@
 package org.khdl.dsl
 
+import org.khdl.collections.immutable.PersistentList
+import org.khdl.collections.immutable.buildPersistentList
 import java.lang.Math.addExact
 import java.lang.Math.multiplyExact
 import java.util.Objects.checkFromIndexSize
@@ -28,14 +30,14 @@ public fun <T : Type> vector(element: T, size: Int, block: (Int) -> Signal<T>): 
 
     return Signal(
         Vector(element, size),
-        ConcatNode(
-            Array(size) { index ->
+        buildPersistentList {
+            repeat(size) { index ->
                 block(index).let {
                     require(it.type == element)
-                    it.node
+                    addAll(it.wires)
                 }
             }
-        ),
+        },
     )
 }
 
@@ -80,7 +82,7 @@ public inline fun <T : Type> Signal<Vector<T>>.forEach(block: (Signal<T>) -> Uni
 
 public operator fun <T : Type> Signal<Vector<T>>.get(index: Int): Signal<T> {
     checkIndex(index, type.size)
-    return Signal(type.element, SliceNode(node, multiplyExact(index, type.element.bitWidth), type.element.bitWidth))
+    return Signal(type.element, PersistentList(type.element.bitWidth) { wires[index * type.element.bitWidth + it] })
 }
 
 public operator fun <T : Type> Signal<Vector<T>>.get(indices: IntProgression): Signal<Vector<T>> {

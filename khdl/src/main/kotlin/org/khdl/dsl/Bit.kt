@@ -1,5 +1,8 @@
 package org.khdl.dsl
 
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
+
 public object Bit : Type {
     override val bitWidth: Int get() = 1
 }
@@ -9,38 +12,33 @@ public val Boolean.bit: Signal<Bit> get() {
 }
 
 public fun zero(): Signal<Bit> {
-    return Signal(Bit, CONSTANT_ZERO)
+    return Signal(Bit, persistentListOf(ZeroWire))
 }
 
 public fun one(): Signal<Bit> {
-    return Signal(Bit, CONSTANT_ONE)
+    return Signal(Bit, persistentListOf(OneWire))
 }
 
 public fun dontCare(): Signal<Bit> {
-    return Signal(Bit, CONSTANT_X)
+    return Signal(Bit, persistentListOf(DontCareWire))
 }
 
 public fun highImpedance(): Signal<Bit> {
-    return Signal(Bit, CONSTANT_Z)
+    return Signal(Bit, persistentListOf(HighImpedanceWire))
 }
 
 public infix fun Signal<Bit>.and(rhs: Signal<Bit>): Signal<Bit> {
-    return Signal(Bit, AndNode(node, rhs.node))
+    return Signal(Bit, persistentListOf(AndWire(persistentSetOf(wires.single(), rhs.wires.single()))))
 }
 
 public infix fun Signal<Bit>.or(rhs: Signal<Bit>): Signal<Bit> {
-    return Signal(Bit, OrNode(node, rhs.node))
+    return Signal(Bit, persistentListOf(OrWire(persistentSetOf(wires.single(), rhs.wires.single()))))
 }
 
 public infix fun Signal<Bit>.xor(rhs: Signal<Bit>): Signal<Bit> {
-    return Signal(Bit, XorNode(node, rhs.node))
+    return Signal(Bit, persistentListOf(XorWire(persistentSetOf(wires.single(), rhs.wires.single()))))
 }
 
 public fun Signal<Bit>.inv(): Signal<Bit> {
-    return Signal(Bit, OnesComplementNode(node))
+    return Signal(Bit, persistentListOf(NotWire(wires.single())))
 }
-
-private val CONSTANT_ZERO = ConstantNode(byteArrayOf(ConstantNode.ZERO))
-private val CONSTANT_ONE = ConstantNode(byteArrayOf(ConstantNode.ONE))
-private val CONSTANT_X = ConstantNode(byteArrayOf(ConstantNode.DONT_CARE))
-private val CONSTANT_Z = ConstantNode(byteArrayOf(ConstantNode.HIGH_IMPEDANCE))

@@ -1,14 +1,16 @@
 package org.khdl.dsl
 
-public class Register<T : Type>(type: T, clock: Signal<Clock>) {
-    public val signal: Signal<T> = Signal(type, RegisterNode(WireNode(type.bitWidth), clock.node))
+import org.khdl.collections.immutable.PersistentList
 
-    public val clock: Signal<Clock> get() {
-        return Signal(Clock, (signal.node as RegisterNode).clock)
-    }
+public class Register<T : Type>(type: T, clock: Signal<Clock>, clockEnable: Signal<Bit> = one()) {
+    public val signal: Signal<T> = Signal(type, PersistentList(type.bitWidth) {
+        RegisteredWire(SplicedWire(), clock.wires.single(), clockEnable.wires.single())
+    })
 
     public fun connectInput(input: Signal<T>) {
         require(input.type == signal.type)
-        ((signal.node as RegisterNode).input as WireNode).connectDriver(input.node)
+        signal.wires.forEachIndexed { i, wire ->
+            ((wire as RegisteredWire).input as SplicedWire).driver = input.wires[i]
+        }
     }
 }

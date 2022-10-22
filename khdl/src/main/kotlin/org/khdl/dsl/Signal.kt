@@ -1,24 +1,17 @@
 package org.khdl.dsl
 
-public class Signal<out T : Type> internal constructor(public val type: T, internal val node: Node) {
+import kotlinx.collections.immutable.PersistentList
+
+public class Signal<out T : Type> internal constructor(
+    public val type: T,
+    internal val wires: PersistentList<Wire>,
+) {
     init {
-        require(type.bitWidth == node.width)
-    }
-
-    override fun equals(other: Any?): Boolean {
-        return other is Signal<*> && type == other.type && node == other.node
-    }
-
-    override fun hashCode(): Int {
-        return 31 * type.hashCode() + node.hashCode()
-    }
-
-    override fun toString(): String {
-        return "Signal($node : $type)"
+        require(type.bitWidth == wires.size)
     }
 }
 
 public fun <T : Type> Signal<*>.bitCastTo(type: T): Signal<T> {
     require(this.type.bitWidth == type.bitWidth)
-    return Signal(type, node)
+    return Signal(type, wires)
 }
