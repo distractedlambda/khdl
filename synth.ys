@@ -1,0 +1,2 @@
+read_verilog -sv regfile.sv
+synth_xilinx -top regfile -dff -retime -noiopad -noclkbuf
