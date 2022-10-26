@@ -1,5 +1,9 @@
 package org.khdl.dsl
 
+import kotlinx.collections.immutable.PersistentList
+import kotlinx.collections.immutable.persistentListOf
+import org.khdl.collections.immutable.PersistentList
+
 public data class Unsigned(override val bitWidth: Int) : Integer
 
 public val Signal<Vector<Bit>>.unsigned: Signal<Unsigned> get() {
@@ -7,115 +11,111 @@ public val Signal<Vector<Bit>>.unsigned: Signal<Unsigned> get() {
 }
 
 public val Int.unsigned: Signal<Unsigned> get() = when (this) {
-    0 -> Signal(Unsigned(0), NilNode)
+    0 -> Signal(Unsigned(0), persistentListOf())
 
     in 1..Int.MAX_VALUE -> {
         val bitWidth = Int.SIZE_BITS - countLeadingZeroBits()
-        Signal(
-            Unsigned(bitWidth),
-            ConstantNode(ByteArray(bitWidth) { (this shr it and 1).toByte() }),
-        )
+        Signal(Unsigned(bitWidth), PersistentList(bitWidth) {
+            if (this shr it and 1 != 0) {
+                OneWire
+            } else {
+                ZeroWire
+            }
+        })
     }
 
     else -> throw IllegalArgumentException()
 }
 
 public val Long.unsigned: Signal<Unsigned> get() = when (this) {
-    0L -> Signal(Unsigned(0), NilNode)
+    0L -> Signal(Unsigned(0), persistentListOf())
 
     in 1..Long.MAX_VALUE -> {
         val bitWidth = Long.SIZE_BITS - countLeadingZeroBits()
-        Signal(
-            Unsigned(bitWidth),
-            ConstantNode(ByteArray(bitWidth) { (this shr it and 1).toByte() }),
-        )
+        Signal(Unsigned(bitWidth), PersistentList(bitWidth) {
+            if (this shr it and 1 != 0L) {
+                OneWire
+            } else {
+                ZeroWire
+            }
+        })
     }
 
     else -> throw IllegalArgumentException()
 }
 
 public val UInt.unsigned: Signal<Unsigned> get() = when (this) {
-    0u -> Signal(Unsigned(0), NilNode)
+    0u -> Signal(Unsigned(0), persistentListOf())
 
     else -> {
         val bitWidth = UInt.SIZE_BITS - countLeadingZeroBits()
-        Signal(
-            Unsigned(bitWidth),
-            ConstantNode(ByteArray(bitWidth) { (this shr it and 1u).toByte() }),
-        )
+        Signal(Unsigned(bitWidth), PersistentList(bitWidth) {
+            if (this shr it and 1u != 0u) {
+                OneWire
+            } else {
+                ZeroWire
+            }
+        })
     }
 }
 
 public val ULong.unsigned: Signal<Unsigned> get() = when (this) {
-    0uL -> Signal(Unsigned(0), NilNode)
+    0uL -> Signal(Unsigned(0), persistentListOf())
 
     else -> {
         val bitWidth = ULong.SIZE_BITS - countLeadingZeroBits()
-        Signal(
-            Unsigned(bitWidth),
-            ConstantNode(ByteArray(bitWidth) { (this shr it and 1u).toByte() }),
-        )
+        Signal(Unsigned(bitWidth), PersistentList(bitWidth) {
+            if (this shr it and 1u != 0uL) {
+                OneWire
+            } else {
+                ZeroWire
+            }
+        })
     }
 }
 
-private fun binaryOp(lhs: Signal<Unsigned>, rhs: Signal<Unsigned>, factory: (Node, Node) -> Node): Signal<Unsigned> {
+private fun binaryOp(
+    lhs: Signal<Unsigned>,
+    rhs: Signal<Unsigned>,
+    factory: (PersistentList<Wire>, PersistentList<Wire>) -> Op,
+): Signal<Unsigned> {
     val promotedWidth = maxOf(lhs.type.bitWidth, rhs.type.bitWidth)
-    val promotedLhs = if (lhs.type.bitWidth == promotedWidth) lhs.node else ZeroExtendNode(promotedWidth, lhs.node)
-    val promotedRhs = if (rhs.type.bitWidth == promotedWidth) rhs.node else ZeroExtendNode(promotedWidth, rhs.node)
-    return Signal(Unsigned(promotedWidth), factory(promotedLhs, promotedRhs))
+    val op = factory(lhs.wires, rhs.wires)
+    return Signal(Unsigned(promotedWidth), PersistentList(promotedWidth) { OpWire(op, it) })
 }
 
 public operator fun Signal<Unsigned>.plus(rhs: Signal<Unsigned>): Signal<Unsigned> {
-    return binaryOp(this, rhs, ::AddNode)
+    return binaryOp(this, rhs, ::UnsignedAddOp)
 }
 
 public operator fun Signal<Unsigned>.minus(rhs: Signal<Unsigned>): Signal<Unsigned> {
-    return binaryOp(this, rhs) { l, r -> AddNode(l, TwosComplementNode(r)) }
+    return binaryOp(this, rhs, ::UnsignedSubtractOp)
 }
 
 public operator fun Signal<Unsigned>.times(rhs: Signal<Unsigned>): Signal<Unsigned> {
-    return binaryOp(this, rhs, ::UnsignedMultiplyNode)
-}
-
-public infix fun Signal<Unsigned>.and(rhs: Signal<Unsigned>): Signal<Unsigned> {
-    return binaryOp(this, rhs, ::AndNode)
-}
-
-public infix fun Signal<Unsigned>.or(rhs: Signal<Unsigned>): Signal<Unsigned> {
-    return binaryOp(this, rhs, ::OrNode)
-}
-
-public infix fun Signal<Unsigned>.xor(rhs: Signal<Unsigned>): Signal<Unsigned> {
-    return binaryOp(this, rhs, ::XorNode)
-}
-
-private fun binaryCompare(lhs: Signal<Unsigned>, rhs: Signal<Unsigned>, factory: (Node, Node) -> Node): Signal<Bit> {
-    val promotedWidth = maxOf(lhs.type.bitWidth, rhs.type.bitWidth)
-    val promotedLhs = if (lhs.type.bitWidth == promotedWidth) lhs.node else ZeroExtendNode(promotedWidth, lhs.node)
-    val promotedRhs = if (rhs.type.bitWidth == promotedWidth) rhs.node else ZeroExtendNode(promotedWidth, rhs.node)
-    return Signal(Bit, factory(promotedLhs, promotedRhs))
+    return binaryOp(this, rhs, ::UnsignedMultiplyOp)
 }
 
 public infix fun Signal<Unsigned>.eq(rhs: Signal<Unsigned>): Signal<Bit> {
-    return binaryCompare(this, rhs, ::EqNode)
+    return Signal(Bit, persistentListOf(UnsignedEqWire(wires, rhs.wires)))
 }
 
 public infix fun Signal<Unsigned>.ne(rhs: Signal<Unsigned>): Signal<Bit> {
-    return (this eq rhs).inv()
+    return Signal(Bit, persistentListOf(UnsignedNeWire(wires, rhs.wires)))
 }
 
 public infix fun Signal<Unsigned>.lt(rhs: Signal<Unsigned>): Signal<Bit> {
-    return binaryCompare(this, rhs, ::UnsignedLtNode)
+    return Signal(Bit, persistentListOf(UnsignedLtWire(wires, rhs.wires)))
 }
 
 public infix fun Signal<Unsigned>.le(rhs: Signal<Unsigned>): Signal<Bit> {
-    return (this lt rhs) or (this eq rhs)
+    return Signal(Bit, persistentListOf(UnsignedLeWire(wires, rhs.wires)))
 }
 
 public infix fun Signal<Unsigned>.gt(rhs: Signal<Unsigned>): Signal<Bit> {
-    return (this le rhs).inv()
+    return Signal(Bit, persistentListOf(UnsignedGtWire(wires, rhs.wires)))
 }
 
 public infix fun Signal<Unsigned>.ge(rhs: Signal<Unsigned>): Signal<Bit> {
-    return (this lt rhs).inv()
+    return Signal(Bit, persistentListOf(UnsignedGeWire(wires, rhs.wires)))
 }

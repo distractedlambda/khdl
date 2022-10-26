@@ -1,10 +1,11 @@
 package org.khdl.dsl
 
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.plus
 import org.khdl.collections.immutable.PersistentList
 import org.khdl.collections.immutable.buildPersistentList
 import java.lang.Math.addExact
 import java.lang.Math.multiplyExact
-import java.util.Objects.checkFromIndexSize
 import java.util.Objects.checkIndex
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
@@ -86,30 +87,16 @@ public operator fun <T : Type> Signal<Vector<T>>.get(index: Int): Signal<T> {
 }
 
 public operator fun <T : Type> Signal<Vector<T>>.get(indices: IntProgression): Signal<Vector<T>> {
-    return if (indices.step == 1) {
-        val last = indices.last
-        val size = last - indices.first + 1
-        checkFromIndexSize(indices.first, size, type.size)
-        Signal(
-            Vector(type.element, size),
-            SliceNode(
-                node,
-                multiplyExact(indices.first, type.element.bitWidth),
-                multiplyExact(size, type.element.bitWidth),
-            ),
-        )
-    } else {
-        val indexList = indices.toList()
-        Signal(
-            Vector(type.element, indexList.size),
-            ConcatNode(
-                indexList.map {
-                    checkIndex(it, type.size)
-                    SliceNode(node, multiplyExact(it, type.element.bitWidth), type.element.bitWidth)
-                }.toTypedArray()
-            ),
-        )
+    var size = 0
+
+    val wires = buildPersistentList {
+        for (i in indices) {
+            addAll(this@get[i].wires)
+            size++
+        }
     }
+
+    return Signal(Vector(type.element, size), wires)
 }
 
 public fun <T : Type> Signal<Vector<T>>.first(): Signal<T> {
@@ -169,11 +156,15 @@ public operator fun <T : Type> Signal<Vector<T>>.component9(): Signal<T> {
 }
 
 public fun <T : Type> Signal<T>.repeat(times: Int): Signal<Vector<T>> {
-    return Signal(Vector(type, times), RepeatNode(node, times))
+    return Signal(Vector(type, times), buildPersistentList {
+        repeat(times) {
+            addAll(wires)
+        }
+    })
 }
 
 public fun <T : Type> Signal<Vector<Vector<T>>>.flatten(): Signal<Vector<T>> {
-    return Signal(Vector(type.element.element, multiplyExact(type.size, type.element.size)), node)
+    return Signal(Vector(type.element.element, multiplyExact(type.size, type.element.size)), wires)
 }
 
 public fun <T : Type> Signal<Vector<T>>.repeatConcat(times: Int): Signal<Vector<T>> {
@@ -182,36 +173,36 @@ public fun <T : Type> Signal<Vector<T>>.repeatConcat(times: Int): Signal<Vector<
 
 public operator fun <T : Type> Signal<Vector<T>>.plus(rhs: Signal<Vector<T>>): Signal<Vector<T>> {
     require(type.element == rhs.type.element)
-    return Signal(Vector(type.element, addExact(type.size, rhs.type.size)), ConcatNode(arrayOf(node, rhs.node)))
+    return Signal(Vector(type.element, addExact(type.size, rhs.type.size)), wires + rhs.wires)
 }
 
 public fun Signal<Vector<Bit>>.all(): Signal<Bit> {
-    return Signal(Bit, ReductiveAndNode(node))
+    return Signal(Bit, persistentListOf(AndWire(wires)))
 }
 
 public fun Signal<Vector<Bit>>.any(): Signal<Bit> {
-    return Signal(Bit, ReductiveOrNode(node))
+    return Signal(Bit, persistentListOf(OrWire(wires)))
 }
 
 public fun Signal<Vector<Bit>>.parity(): Signal<Bit> {
-    return Signal(Bit, ReductiveXorNode(node))
+    return Signal(Bit, persistentListOf(XorWire(wires)))
 }
 
 public fun Signal<Vector<Bit>>.inv(): Signal<Vector<Bit>> {
-    return Signal(type, OnesComplementNode(node))
+    return Signal(type, PersistentList(wires.size) { NotWire(wires[it]) })
 }
 
 public infix fun Signal<Vector<Bit>>.and(rhs: Signal<Vector<Bit>>): Signal<Vector<Bit>> {
     require(type == rhs.type)
-    return Signal(type, AndNode(node, rhs.node))
+    return Signal(type, PersistentList(wires.size) { AndWire(persistentListOf(wires[it], rhs.wires[it])) })
 }
 
 public infix fun Signal<Vector<Bit>>.or(rhs: Signal<Vector<Bit>>): Signal<Vector<Bit>> {
     require(type == rhs.type)
-    return Signal(type, OrNode(node, rhs.node))
+    return Signal(type, PersistentList(wires.size) { OrWire(persistentListOf(wires[it], rhs.wires[it])) })
 }
 
 public infix fun Signal<Vector<Bit>>.xor(rhs: Signal<Vector<Bit>>): Signal<Vector<Bit>> {
     require(type == rhs.type)
-    return Signal(type, XorNode(node, rhs.node))
+    return Signal(type, PersistentList(wires.size) { XorWire(persistentListOf(wires[it], rhs.wires[it])) })
 }

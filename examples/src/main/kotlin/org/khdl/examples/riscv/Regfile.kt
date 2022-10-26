@@ -12,7 +12,7 @@ import org.khdl.dsl.Port
 import org.khdl.dsl.and
 import org.khdl.dsl.dontCare
 import org.khdl.dsl.eq
-import org.khdl.dsl.select
+import org.khdl.dsl.conditional
 import org.khdl.dsl.unsigned
 import org.khdl.dsl.zeros
 
@@ -59,7 +59,7 @@ fun registerFile(
     readPorts.forEach { port ->
         val registerIndex = port.registerIndex.signal
 
-        port.data.connectDriver(select {
+        port.data.connectDriver(conditional {
             where(registerIndex eq 0.unsigned, zeros(32))
 
             writePorts.forEach {
@@ -75,7 +75,7 @@ fun registerFile(
     }
 
     for (i in 1..31) {
-        gprs[i - 1].connectInput(select {
+        gprs[i - 1].connectInput(conditional {
             writePorts.forEach { writePort ->
                 where(
                     writePort.registerIndex.signal eq i.unsigned and writePort.writeEnable.signal,
